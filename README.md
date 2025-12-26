@@ -1,2 +1,6 @@
 # Gagana-K
-My first GitHub repository for learning and practice
+
+This is my first GitHub repository.
+I am learning how to use GitHub and upload projects.
+
+
