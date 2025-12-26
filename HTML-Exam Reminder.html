@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exam Reminder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .black-theme { background-color: #000; color: #fff; }
+        .white-theme { background-color: #fff; color: #000; }
+        .container { max-width: 600px; margin: auto; }
+        input, button, select { display: block; width: 100%; margin: 10px 0; padding: 10px; }
+        #theme-toggle { width: auto; font-size: 24px; cursor: pointer; }
+        #reminder-form, #history, #seats { display: none; }
+        .history-item { border: 1px solid #ccc; padding: 10px; margin: 5px 0; }
+        .password-container { position: relative; }
+        .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 18px; }
+        .link-btn { background: none; border: none; color: inherit; text-decoration: underline; cursor: pointer; padding: 0; font-size: inherit; }
+        #login-btn { background-color: #007bff; color: white; border: none; cursor: pointer; }
+        #login-btn:hover { background-color: #0056b3; }
+        .seat-item { display: flex; align-items: center; margin: 5px 0; }
+        .seat-item input { width: 80%; margin-right: 10px; }
+        .seat-item button { width: auto; }
+    </style>
+</head>
+<body class="white-theme">
+    <div class="container">
+        <h1>Exam Reminder</h1>
+        <button id="theme-toggle">☀</button> <!-- Starts with sun for white theme -->
+        
+        <div id="login-form">
+            <h2>Login</h2>
+            <input type="email" id="email" placeholder="Email" required>
+            <div class="password-container">
+                <input type="password" id="password" placeholder="Password" required>
+                <span class="password-toggle" id="password-toggle">👁️</span>
+            </div>
+            <button id="login-btn">Login</button>
+            <p>Don't have an account? <a href="#" id="signup-btn" class="link-btn">Sign Up</a></p>
+            <p><a href="#" id="forgot-btn" class="link-btn">Forgot Password?</a></p>
+        </div>
+        
+        <div id="reminder-form">
+            <h2>Schedule Exam Reminder</h2>
+            <input type="text" id="name" placeholder="Student Name" required>
+            <input type="tel" id="phone" placeholder="Phone Number" required>
+            <input type="email" id="reminder-email" placeholder="Email ID" required>
+            <input type="date" id="date" required>
+            <input type="time" id="time" required>
+            <input type="text" id="subject" placeholder="Subject" required>
+            <select id="reminder-type">
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+            </select>
+            <button id="send-btn">Send Reminder</button>
+            <button id="history-btn">View History</button>
+            <button id="seats-btn">Allocate Seats</button>
+        </div>
+        
+        <div id="history">
+            <h2>Sent Reminders History</h2>
+            <div id="history-list"></div>
+            <button id="back-btn">Back</button>
+        </div>
+        
+        <div id="seats">
+            <h2>Allocate Exam Seats</h2>
+            <div id="custom-seats">
+                <!-- Dynamically added custom seats -->
+            </div>
+            <button id="add-seat-btn">Add Custom Seat</button>
+            <select id="seat-select">
+                <option value="">Select Seat</option>
+                <!-- Dynamically populated -->
+            </select>
+            <button id="allocate-btn">Allocate Seat</button>
+            <p id="allocated-seat"></p>
+            <button id="back-seats-btn">Back</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+    <script>
+        // Initialize EmailJS with your provided public key (user ID)
+        emailjs.init("aB7-XKOCkKBPOE6nG");
+
+        // Theme toggle with icons
+        const themeToggle = document.getElementById('theme-toggle');
+        const body = document.body;
+        const savedTheme = localStorage.getItem('theme') || 'white';
+        body.className = savedTheme + '-theme';
+        themeToggle.textContent = savedTheme === 'white' ? '☀' : '🌙';
+
+        themeToggle.addEventListener('click', () => {
+            const newTheme = body.classList.contains('white-theme') ? 'black' : 'white';
+            body.className = newTheme + '-theme';
+            themeToggle.textContent = newTheme === 'white' ? '☀' : '🌙';
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // Password visibility toggle
+        const passwordToggle = document.getElementById('password-toggle');
+        const passwordInput = document.getElementById('password');
+        passwordToggle.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            passwordToggle.textContent = type === 'password' ? '👁️' : '🙈'; // Change icon for visibility
+        });
+
+        // Login/Signup simulation
+        const loginForm = document.getElementById('login-form');
+        const reminderForm = document.getElementById('reminder-form');
+        const historyDiv = document.getElementById('history');
+        const seatsDiv = document.getElementById('seats');
+        const loginBtn = document.getElementById('login-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const forgotBtn = document.getElementById('forgot-btn');
+
+        signupBtn.addEventListener('click', () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (email && password) {
+                localStorage.setItem('user', JSON.stringify({ email, password, allocatedSeat: null }));
+                alert('Account created! Please login.');
+            } else {
+                alert('Please fill in all fields.');
+            }
+        });
+
+        loginBtn.addEventListener('click', () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && user.email === email && user.password === password) {
+                loginForm.style.display = 'none';
+                reminderForm.style.display = 'block';
+            } else {
+                alert('Invalid credentials or account not found.');
+            }
+        });
+
+        // Forgot password with real email (using the same template for now; create a separate reset template in EmailJS if needed)
+        forgotBtn.addEventListener('click', () => {
+            const email = prompt('Enter your email to reset password:');
+            const user = JSON.parse(localStorage.getItem('user'));
+            if (user && user.email === email) {
+                // Generate a simple reset link (in production, use secure tokens from backend)
+                const resetLink = `http://example.com/reset?email=${encodeURIComponent(email)}&token=${Date.now()}`; // Fixed: Removed erroneous semicolon
+                emailjs.send("service_d2qaxjc", "template_x3bfytg", { to_email: email, reset_link: resetLink })  // Using provided service and template; customize template for reset if needed
+                    .then(() => alert('Reset link sent to your email!'))
+                    .catch(() => alert('Error sending reset email.'));
+            } else {
+                alert('Email not found.');
+            }
+        });
+
+        // Send reminder with real email or simulated SMS
+        document.getElementById('send-btn').addEventListener('click', () => {
+            const name = document.getElementById('name').value;
+            const phone = document.getElementById('phone').value;
+            const email = document.getElementById('reminder-email').value;
+            const date = document.getElementById('date').value;
+            const time = document.getElementById('time').value;
+            const subject = document.getElementById('subject').value;
+            const type = document.getElementById('reminder-type').value;
+
+            if (!name || !phone || !email || !date || !time || !subject) {
+                alert('Please fill in all fields.');
+                return;
+            }
+
+            // Get the user's allocated seat (if any)
+            const user = JSON.parse(localStorage.getItem('user')) || {};
+            const seat = user.allocatedSeat || 'Not allocated';
+
+            const reminder = { name, phone, email, date, time, subject, type, seat, timestamp: new Date().toISOString() };
+            let history = JSON.parse(localStorage.getItem('history')) || [];
+            history.push(reminder);
+            localStorage.setItem('history', JSON.stringify(history));
+
+            if (type === 'email') {
+                const templateParams = {
+                    to_email: email,  // This should be the student's email
+                    name: name,       // Updated to match {{name}} in template
+                    subject: subject,
+                    date: date,
+                    time: time,
+                    seat: seat        // Added seat number
+                };
+                emailjs.send("service_d2qaxjc", "template_x3bfytg", templateParams)
+                    .then(() => alert('Email reminder sent!'))
+                    .catch((error) => {
+                        console.error('Email send error:', error);
+                        alert('Failed to send email. Check console for details.');
+                    });
+            } else if (type === 'sms') {
+                // Simulated SMS (integrate Twilio for real SMS)
+                alert(`SMS reminder simulated: ${name}, your exam for ${subject} is on ${date} at ${time}. Seat: ${seat}.`);
+            }
+        });
+
+        // History
+        document.getElementById('history-btn').addEventListener('click', () => {
+            reminderForm.style.display = 'none';
+            historyDiv.style.display = 'block';
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            const history = JSON.parse(localStorage.getItem('history')) || [];
+            history.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `<strong>${item.name}</strong> - ${item.subject} on ${item.date} at ${item.time} (${item.type}) - Seat: ${item.seat || 'N/A'}`;
+                historyList.appendChild(div);
+            });
+        });
+
+        document.getElementById('back-btn').addEventListener('click', () => {
+            historyDiv.style.display = 'none';
+            reminderForm.style.display = 'block';
+        });
+
+        // Seats allotment - now customizable
+        let customSeats = JSON.parse(localStorage.getItem('customSeats')) || ['Seat 1', 'Seat 2', 'Seat 3', 'Seat 4', 'Seat 5'];
+
+        function renderCustomSeats() {
+            const customSeatsDiv = document.getElementById('custom-seats');
+            customSeatsDiv.innerHTML = '';
+            customSeats.forEach((seat, index) => {
+                const div = document.createElement('div');
+                div.className = 'seat-item';
+                div.innerHTML = `
+                    <input type="text" value="${seat}" onchange="updateSeat(${index}, this.value)">
+                    <button onclick="removeSeat(${index})">Remove</button>
+                `;
+                customSeatsDiv.appendChild(div);
+            });
+        }
+
+        function updateSeat(index, value) {
+            customSeats[index] = value;
+            localStorage.setItem('customSeats', JSON.stringify(customSeats));
+            populateSeatSelect();
+        }
+
+        function removeSeat(index) {
+            customSeats.splice(index, 1);
+            localStorage.setItem('customSeats', JSON.stringify(customSeats));
+            renderCustomSeats();
+            populateSeatSelect();
+        }
+
+        function populateSeatSelect() {
+            const seatSelect = document.getElementById('seat-select');
+            seatSelect.innerHTML = '<option value="">Select Seat</option>';
+            customSeats.forEach(seat => {
+                const option = document.createElement('option');
+                option.value = seat;
+                option.textContent = seat;
+                seatSelect.appendChild(option);
+            });
+        }
+
+        document.getElementById('seats-btn').addEventListener('click', () => {
+            reminderForm.style.display = 'none';
+            seatsDiv.style.display = 'block';
+            renderCustomSeats();
+            populateSeatSelect();
+            const user = JSON.parse(localStorage.getItem('user'));
+            document.getElementById('allocated-seat').textContent = user.allocatedSeat ? `Allocated: ${user.allocatedSeat}` : 'No seat allocated yet.';
+        });
+
+        document.getElementById('add-seat-btn').addEventListener('click', () => {
+            customSeats.push(`Seat ${customSeats.length + 1}`);
+            localStorage.setItem('customSeats', JSON.stringify(customSeats));
+            renderCustomSeats();
+            populateSeatSelect();
+        });
+
+        document.getElementById('allocate-btn').addEventListener('click', () => {
+            const selectedSeat = document.getElementById('seat-select').value;
+            if (selectedSeat) {
+                const user = JSON.parse(localStorage.getItem('user'));
+                user.allocatedSeat = selectedSeat;
+                localStorage.setItem('user', JSON.stringify(user));
+                document.getElementById('allocated-seat').textContent = `Allocated: ${selectedSeat}`;
+                alert('Seat allocated!');
+            } else {
+                alert('Please select a seat.');
+            }
+        });
+
+        document.getElementById('back-seats-btn').addEventListener('click', () => {
+            seatsDiv.style.display = 'none';
+            reminderForm.style.display = 'block';
+        });
+    </script>
+</body>
+</html>
